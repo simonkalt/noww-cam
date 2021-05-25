@@ -1,21 +1,215 @@
-import { StatusBar } from 'expo-status-bar';
-import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import {
+  StyleSheet,
+  Dimensions,
+  View,
+  Text,
+  TouchableOpacity,
+  Alert
+} from 'react-native';
+import { Camera } from 'expo-camera';
+import { AntDesign, MaterialIcons } from '@expo/vector-icons';
+
+import * as AWS from 'aws-sdk';
+
+const ID = 'AKIAQJQBNKSSQAQNWLVJ';
+const SECRET = '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';
+
+// The name of the bucket that you have created
+const BUCKET_NAME = 'noww';
+
+
+const WINDOW_HEIGHT = Dimensions.get('window').height;
+const CAPTURE_SIZE = Math.floor(WINDOW_HEIGHT * 0.08);
+var isPreview = false;
+var cameraRef = null;
 
 export default function App() {
+  cameraRef = useRef();
+  const [hasPermission, setHasPermission] = useState(null);
+  const [cameraType, setCameraType] = useState(Camera.Constants.Type.back);
+  const [isCameraReady, setIsCameraReady] = useState(false);
+
+  useEffect(() => {
+    onHandlePermission();
+  }, []);
+
+  const onHandlePermission = async () => {
+    const { status } = await Camera.requestPermissionsAsync();
+    setHasPermission(status === 'granted');
+  };
+
+  const onCameraReady = () => {
+    setIsCameraReady(true);
+  };
+
+  const switchCamera = () => {
+    if (isPreview) {
+      return;
+    }
+    setCameraType(prevCameraType =>
+      prevCameraType === Camera.Constants.Type.back
+        ? Camera.Constants.Type.front
+        : Camera.Constants.Type.back
+    );
+  };
+
+  if (hasPermission === null) {
+    return <View />;
+  }
+  if (hasPermission === false) {
+    return <Text style={styles.text}>No access to camera</Text>;
+  }
   return (
     <View style={styles.container}>
-      <Text>Open up App.js to start working on your app!</Text>
-      <StatusBar style="auto" />
+      {isPreview && (
+        <TouchableOpacity
+          onPress={cancelPreview}
+          style={styles.closeButton}
+          activeOpacity={0.7}
+        >
+          <AntDesign name='close' size={56} color='#fff' />
+        </TouchableOpacity>
+      )}
+      <Camera
+        ref={cameraRef}
+        style={styles.container}
+        type={cameraType}
+        onCameraReady={onCameraReady}
+        useCamera2Api={true}
+      />
+      <View style={styles.bottomButtonsContainer}>
+        <TouchableOpacity disabled={!isCameraReady} onPress={switchCamera}>
+          <MaterialIcons name='flip-camera-ios' size={56} color='brown' />
+        </TouchableOpacity>
+        <TouchableOpacity
+          activeOpacity={0.5}
+          disabled={!isCameraReady}
+          onPress={onSnap}
+          style={styles.capture}
+        />
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
+    ...StyleSheet.absoluteFillObject
   },
+  text: {
+    color: '#fff'
+  },
+  bottomButtonsContainer: {
+    position: 'absolute',
+    flexDirection: 'row',
+    bottom: 28,
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  capture: {
+    backgroundColor: 'white',
+    borderRadius: 5,
+    height: CAPTURE_SIZE,
+    width: CAPTURE_SIZE,
+    borderRadius: Math.floor(CAPTURE_SIZE / 2),
+    marginBottom: 28,
+    marginHorizontal: 30
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 35,
+    right: 20,
+    height: 50,
+    width: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#5A45FF',
+    opacity: 0.7
+  }
 });
+
+const onSnap = async () => {
+  if (cameraRef.current) {
+    const options = { quality: 0.7, base64: true };
+    const data = await cameraRef.current.takePictureAsync(options);
+    const source = data.base64;
+    //source.type = 'jpg';
+
+
+
+    if (source) {
+      await cameraRef.current.pausePreview();
+      isPreview = true;
+      // let base64Img = `data:image/jpg;base64,${source}`
+      uploadFile(data.base64);
+
+      /*
+      ;
+      let apiUrl =
+        'https://api.cloudinary.com/v1_1/btechadvisory/images/';
+      let data = {
+        file: base64Img,
+        upload_preset: 'oab2rwy3'
+      };
+
+      fetch(apiUrl, {
+        body: JSON.stringify(data),
+        headers: {
+          'content-type': 'application/json'
+        },
+        method: 'POST'
+      })
+        .then(async response => {
+          let data = await response.json();
+          if (data.secure_url) {
+            alert('Upload successful');
+          }
+        })
+        .catch(err => {
+          alert('Cannot upload');
+        });
+      */
+    }
+  }
+};
+
+const cancelPreview = async () => {
+  await cameraRef.current.resumePreview();
+  isPreview = false;
+};
+
+const uploadFile = (stream) => {
+  // Read content from the file
+  const fileContent = stream;
+
+  // Setting up S3 upload parameters
+
+
+  var s3 = new AWS.S3({
+  accessKeyId: ID,
+  secretAccessKey: SECRET,
+  region: "us-west-1"  
+}),
+params = {
+      Bucket: BUCKET_NAME,
+      Key: 'webcamsnap.jpg', // File name you want to save as in S3
+      Body: fileContent
+  };
+
+    // Uploading files to the bucket
+  s3.upload(params, function(err, data) {
+      if (err) {
+        cancelPreview();
+        alert(err.code);
+        throw err;
+      } else {
+        var msg = `File uploaded successfully. ${data.Location}`;
+        alert(msg);
+      console.log(msg); 
+      cancelPreview();
+    }
+  });
+};
