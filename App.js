@@ -18,9 +18,9 @@ const SECRET = 'Bl6KeoY4ZIXH2ZoO/rxTBHQnJ99QtIa0Q5sYxs1J';
 // The name of the bucket that you have created
 const BUCKET_NAME = 'noww';
 
-
 const WINDOW_HEIGHT = Dimensions.get('window').height;
 const CAPTURE_SIZE = Math.floor(WINDOW_HEIGHT * 0.08);
+
 var isPreview = false;
 var cameraRef = null;
 
@@ -131,54 +131,25 @@ const styles = StyleSheet.create({
   }
 });
 
-const onSnap = async () => {
-  if (cameraRef.current) {
-    const options = { quality: 0.7, base64: true };
-    const data = await cameraRef.current.takePictureAsync(options);
-    const source = data.base64;
-    //source.type = 'jpg';
-
-
-
-    if (source) {
-      await cameraRef.current.pausePreview();
-      isPreview = true;
-      // let base64Img = `data:image/jpg;base64,${source}`
-      uploadFile(data.base64);
-
-      /*
-      ;
-      let apiUrl =
-        'https://api.cloudinary.com/v1_1/btechadvisory/images/';
-      let data = {
-        file: base64Img,
-        upload_preset: 'oab2rwy3'
-      };
-
-      fetch(apiUrl, {
-        body: JSON.stringify(data),
-        headers: {
-          'content-type': 'application/json'
-        },
-        method: 'POST'
-      })
-        .then(async response => {
-          let data = await response.json();
-          if (data.secure_url) {
-            alert('Upload successful');
-          }
-        })
-        .catch(err => {
-          alert('Cannot upload');
-        });
-      */
-    }
-  }
-};
-
 const cancelPreview = async () => {
   await cameraRef.current.resumePreview();
   isPreview = false;
+};
+
+const onSnap = async () => {
+  if (cameraRef.current) {
+    const options = { quality: 0.7, base64: false };
+    const data = await cameraRef.current.takePictureAsync(options);
+    const source = data.uri.replace('data:image/png;base64,',"");
+    //const source = data.base64;
+   alert(source);
+   if (source) {
+      await cameraRef.current.pausePreview();
+      isPreview = true;
+
+      await uploadFile(source);
+    }
+  }
 };
 
 const uploadFile = (stream) => {
@@ -195,6 +166,7 @@ const uploadFile = (stream) => {
 }),
 params = {
       Bucket: BUCKET_NAME,
+      ContentType: 'image/jpeg',
       Key: 'webcamsnap.jpg', // File name you want to save as in S3
       Body: fileContent
   };
