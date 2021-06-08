@@ -11,6 +11,7 @@ import { Camera } from 'expo-camera';
 import { AntDesign, MaterialIcons } from '@expo/vector-icons';
 
 import * as AWS from 'aws-sdk';
+import sendThroughSendGrid from './src/SendMail'
 
 const ID = 'AKIAQJQBNKSSQAQNWLVJ';
 const SECRET = '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';
@@ -140,14 +141,16 @@ const onSnap = async () => {
   if (cameraRef.current) {
     const options = { quality: 0.7, base64: false };
     const data = await cameraRef.current.takePictureAsync(options);
-    const source = data.uri.replace('data:image/png;base64,',"");
-    //const source = data.base64;
-   alert(source);
-   if (source) {
+    //const source = data.uri.replace('data:image/png;base64,',"");
+    const source = data.base64;
+    alert(source);
+    if (source) {
       await cameraRef.current.pausePreview();
       isPreview = true;
 
       await uploadFile(source);
+
+      await sendThroughSendGrid();
     }
   }
 };
@@ -160,27 +163,27 @@ const uploadFile = (stream) => {
 
 
   var s3 = new AWS.S3({
-  accessKeyId: ID,
-  secretAccessKey: SECRET,
-  region: "us-west-1"  
-}),
-params = {
+    accessKeyId: ID,
+    secretAccessKey: SECRET,
+    region: "us-west-1"
+  }),
+    params = {
       Bucket: BUCKET_NAME,
-      ContentType: 'image/jpeg',
-      Key: 'webcamsnap.jpg', // File name you want to save as in S3
+      ContentType: 'image/png',
+      Key: 'webcamsnap.png', // File name you want to save as in S3
       Body: fileContent
-  };
+    };
 
-    // Uploading files to the bucket
-  s3.upload(params, function(err, data) {
-      if (err) {
-        cancelPreview();
-        alert(err.code);
-        throw err;
-      } else {
-        var msg = `File uploaded successfully. ${data.Location}`;
-        alert(msg);
-      console.log(msg); 
+  // Uploading files to the bucket
+  s3.upload(params, function (err, data) {
+    if (err) {
+      cancelPreview();
+      // alert(err.code);
+      throw err;
+    } else {
+      var msg = `File uploaded successfully. ${data.Location}`;
+      alert(msg);
+      console.log(msg);
       cancelPreview();
     }
   });

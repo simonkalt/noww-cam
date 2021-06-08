@@ -8,6 +8,7 @@
     "eject": "expo eject"
   },
   "dependencies": {
+    "@sendgrid/mail": "^7.4.4",
     "aws-sdk": "^2.912.0",
     "expo": "~41.0.1",
     "expo-av": "~9.1.2",
