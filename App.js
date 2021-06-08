@@ -141,16 +141,14 @@ const onSnap = async () => {
   if (cameraRef.current) {
     const options = { quality: 0.7, base64: false };
     const data = await cameraRef.current.takePictureAsync(options);
-    //const source = data.uri.replace('data:image/png;base64,',"");
-    const source = data.base64;
+    const source = data.uri.replace('data:image/png;base64,',"");
+    //const source = data.base64;
     alert(source);
     if (source) {
       await cameraRef.current.pausePreview();
       isPreview = true;
 
       await uploadFile(source);
-
-      await sendThroughSendGrid();
     }
   }
 };
@@ -169,8 +167,8 @@ const uploadFile = (stream) => {
   }),
     params = {
       Bucket: BUCKET_NAME,
-      ContentType: 'image/png',
-      Key: 'webcamsnap.png', // File name you want to save as in S3
+      ContentType: 'image/jpeg',
+      Key: 'webcamsnap.jpg', // File name you want to save as in S3
       Body: fileContent
     };
 
